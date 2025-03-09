@@ -1,4 +1,7 @@
+
 # Overview
+
+[![DOI](https://zenodo.org/badge/945365124.svg)](https://doi.org/10.5281/zenodo.14995885)
 
 This repository contains code and data used in the paper
 *Learning and teaching biological data science in the Bioconductor community*.
