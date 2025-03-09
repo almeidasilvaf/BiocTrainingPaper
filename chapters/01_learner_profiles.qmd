@@ -1,0 +1,101 @@
+---
+execute: 
+  echo: true
+  eval: false
+  warning: false
+---
+
+# Exploring learner profiles in pre-conference workshops
+
+Here, we will use applicants' data from pre-conference workshops to look for
+patterns among applicants and draw a learner's profile. Data were obtained
+from application forms from the following workshops:
+
+1. EuroBioC2024 (Oxford, UK) - Introduction to R/Bioconductor
+2. EuroBioC2024 (Oxford, UK) - RNA-seq analysis with Bioconductor
+3. BiocAsia2023 (Hong Kong, China) - RNA-seq analysis with Bioconductor
+4. EuroBioC2023 (Ghent, Belgium) -  Introduction to R and Bioconductor
+5. EuroBioC2023 (Ghent, Belgium) - RNA-seq analysis with Bioconductor
+6. BioC2023 (Boston, USA) - RNA-seq analysis with Bioconductor
+7. EuroBioC2022 (Heidelberg, Germany) - Introduction to R and Bioconductor
+
+
+```{r here}
+set.seed(123) # for reproducibility
+
+# Load required packages
+library(here)
+library(tidyverse)
+```
+
+
+## Loading and visualizing pre-processed data
+
+Learners were classified into one of four discrete categories indicating how
+experienced they were with the workshop's topics. We did so by manually 
+exploring what learners wrote in the fields
+"experience with R" and "expectations" in the automatically generated 
+spreadsheets (from registration). We used a scale from 0 to 3 as follows:
+
+- 0: no experience
+- 1: little experience, i.e., basic
+- 2: some experience, i.e., intermediate
+- 3: a lot of experience, i.e., advanced
+
+```{r}
+pdata <- read_tsv(
+    here("data", "learner_profiles.tsv"),
+    show_col_types = FALSE
+)
+```
+
+Next, we will summarize data in a bar plot.
+
+```{r}
+# Create barplot: each facet is a Carpentries lesson (either bioc-intro or RNA-seq)
+p_experience <- pdata |>
+    select(!conference) |>
+    pivot_longer(!workshop, names_to = "level", values_to = "count") |>
+    group_by(workshop, level) |>
+    summarise(count = sum(count)) |>
+    ungroup() |>
+    mutate(
+        level = str_to_title(level),
+        level = factor(level, c("No", "Beginner", "Intermediate", "Advanced"))
+    ) |>
+    ggplot(aes(x = count, y = level)) +
+    geom_col(fill = "deepskyblue4", color = "gray10") +
+    geom_text(aes(label = count), hjust = -0.4) +
+    facet_wrap(~workshop, nrow = 1) +
+    theme_classic() +
+    theme(panel.background = element_rect(
+        fill = grid::linearGradient(colorRampPalette(c("gray80", "white"))(100))
+    )) +
+    labs(
+        title = "Previous experience with workshop's topic",
+        x = "Number of participants", y = NULL
+    ) +
+    scale_x_continuous(limits = c(0, 40), expand = c(0.01, 0))
+```
+
+## Saving plots {.unnumbered}
+
+Lastly, we will save plots in .rds files for further reuse.
+
+```{r}
+#| eval: false
+saveRDS(
+    p_experience, compress = "xz",
+    file = here("products", "plots", "experience_with_workshop.rds")
+)
+```
+
+## Session information {.unnumbered}
+
+This document was created under the following conditions:
+
+```{r sessioninfo}
+#| eval: true
+#| echo: false
+sessioninfo::session_info()
+```

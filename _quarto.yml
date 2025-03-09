@@ -1,0 +1,28 @@
+project:
+  type: book
+
+book:
+  title: |
+    Code and data for "Learning and teaching biological data science 
+    in the Bioconductor community"
+  author: 
+    - name: Fabricio Almeida-Silva
+      orcid: https://orcid.org/0000-0002-5314-2964
+  date: "March 2025"
+  chapters:
+    - index.qmd
+    - chapters/01_learner_profiles.qmd
+    - chapters/02_bioc_carpentries_global.qmd
+    - chapters/appendices.qmd
+
+bibliography: bibliography.bib
+
+execute:
+  freeze: auto
+
+format:
+  html:
+    theme: cosmo
+
+editor: 
+  mode: source

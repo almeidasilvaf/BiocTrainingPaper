@@ -1,0 +1,200 @@
+---
+execute: 
+  echo: true
+  eval: false
+  warning: false
+---
+
+# Global distribution of Bioconductor Carpentry workshops and certified instructors
+
+Here, we will explore the global distribution of Carpentries-certified
+instructors on Bioconductor and Bioc Carpentries workshops that have been 
+taught so far. Up-to-date data were obtained from 
+[this repository](https://github.com/mblue9/bioconductor-carpentries).
+
+```{r here}
+#| message: false
+
+set.seed(123) # for reproducibility
+
+# Load required packages
+library(here)
+library(tidyverse)
+library(tidygeocoder)
+library(passport)
+library(rvest)
+library(countrycode)
+```
+
+## Obtaining and visualizing data
+
+We will start by obtaining data for Carpentries-certified instructors on 
+Bioconductor.
+
+```{r}
+# Read instructor data
+instructors <- read_tsv(
+    "https://raw.githubusercontent.com/Bioconductor/bioconductor-training/refs/heads/devel/carpentry/carpentries_instructors.tsv",
+    show_col_types = FALSE
+) |>
+    mutate(
+        status = factor(
+            status, levels = c(
+                "Certified", 
+                "Certified - CZI Year 1", 
+                "Certified - CZI Year 2",
+                "In Progress"
+            )
+        )
+    ) |>
+    geocode(city = "city")
+
+# Read workshops data
+workshops <- read_tsv(
+    "https://raw.githubusercontent.com/Bioconductor/bioconductor-training/refs/heads/devel/carpentry/carpentries_workshops.tsv",
+    show_col_types = FALSE
+) |>
+    filter(city != "Online") |>
+    geocode(city = "city")
+```
+    
+Now, let's plot the geographic distribution of instructors per country.
+
+```{r}
+# Get a data frame of instructors per country to use as 'fill'
+n_per_country <- count(instructors, country, sort = TRUE) |>
+    mutate(n = as.integer(n)) |>
+    as.data.frame() |>
+    mutate(country = str_replace_all(country, c(
+        "United States" = "USA",
+        "United Kingdom" = "UK"
+    )))
+
+# Plot world map with frequencies
+world_map <- map_data("world") |> filter(region != "Antarctica")
+
+map_data <- world_map |> 
+    left_join(n_per_country |> rename(region = country))
+
+p_instructors <- ggplot() +
+    geom_map(
+        map = world_map, data = map_data,
+        aes(long, lat, fill = n, map_id = region), 
+        color = "white", alpha = 0.7, linewidth = 0.2
+    ) +
+    theme_void() +
+    scale_fill_gradient(
+        low = "#56B1F7", high = "#132B43",
+        breaks = seq(2, 20, by = 4)
+    ) +
+    labs(
+        title = "Geographic distribution of Carpentries-certified instructors",
+        fill = "N",
+        color = "Status"
+    ) +
+    geom_point(
+        data = instructors, 
+        aes(x = long, y = lat, color = status), 
+        size = 2, stroke = 0.3, alpha = 0.7
+    ) +
+    ggplot2::scale_color_manual(
+        values = c("firebrick2", "goldenrod2", "mediumpurple3", "deepskyblue3")
+    ) +
+    guides(
+        color = guide_legend(position = "bottom"),
+        fill = guide_colorbar(position = "right")
+    ) +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+Then, we'll do the same for Bioconductor Carpentry materials.
+
+```{r}
+# Get a data frame of workshops per country to use as 'fill'
+workshops_per_country <- workshops |>
+    filter(!is.na(country)) |>
+    count(country, sort = TRUE) |>
+    mutate(n = as.integer(n)) |>
+    as.data.frame() |>
+    mutate(country = str_replace_all(country, c(
+        "United States" = "USA",
+        "United Kingdom" = "UK"
+    )))
+
+# Plot world map with frequencies
+world_map <- map_data("world") |>
+    filter(region != "Antarctica")
+
+map_data <- world_map |> 
+    left_join(workshops_per_country |> rename(region = country))
+
+p_workshops <- ggplot() +
+    geom_map(
+        map = world_map, data = map_data,
+        aes(long, lat, fill = n, map_id = region), 
+        color = "white", alpha = 0.7, size = 0.2
+    ) +
+    theme_void() +
+    scale_fill_gradient(
+        low = "#BAe4B3", high = "#006D2C",
+        breaks = seq(2, 10, by = 2)
+    ) +
+    labs(
+        title = "Geographic distribution of Bioconductor Carpentry workshops",
+        fill = "N",
+        color = "Workshop"
+    ) +
+    geom_point(
+        data = workshops, 
+        aes(x = long, y = lat, color = workshop), 
+        size = 2, stroke = 0.3, alpha = 0.7
+    ) +
+    ggplot2::scale_color_manual(
+        values = c("#0072b2", "#d55e00")
+    ) +
+    guides(
+        fill = guide_colorbar(position = "right"),
+        color = guide_legend(position = "bottom")
+    ) +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Saving objects and plots {.unnumbered}
+
+Lastly, we will save objects and plots in .rds files for further reuse.
+
+```{r}
+# Plots
+saveRDS(
+    p_instructors, compress = "xz",
+    file = here("products", "plots", "instructors_geodistro.rds")
+)
+
+saveRDS(
+    p_workshops, compress = "xz",
+    file = here("products", "plots", "workshops_geodistro.rds")
+)
+
+# Tables
+workshops_final <- workshops |>
+    janitor::clean_names() |>
+    dplyr::select(date, hosted_by, workshop, city = location, instructors, country = country_en)
+
+instructors_final <- instructors |>
+    janitor::clean_names() |>
+    dplyr::select(name, institution, city = location, status, country = country_en)
+
+write_tsv(workshops_final, here("products", "tables", "carpentries_workshops.tsv"))
+write_tsv(instructors_final, here("products", "tables", "carpentries_instructors.tsv"))
+```
+
+## Session information {.unnumbered}
+
+This document was created under the following conditions:
+
+```{r sessioninfo}
+#| eval: true
+#| echo: false
+sessioninfo::session_info()
+```
+
